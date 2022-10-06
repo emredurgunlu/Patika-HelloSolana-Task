@@ -1,47 +1,63 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+//this is the import that rust uses
+use borsh::{ BorshDeserialize, BorshSerialize };
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint,
-    entrypoint::ProgramResult,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+  account_info::{ next_account_info, AccountInfo },
+  entrypoint,
+  entrypoint::ProgramResult,
+  msg,
+  program_error::ProgramError,
+  pubkey::Pubkey,
 };
+/*  There are three pieces for that on-chain code
+    First one, we need to set an account(GreetingAccount) and this is the data that we send across the network
+    In Solana, we need to define the GreetingAccount in both the on-chain and off-chain.
+    The second thing, we need to set an entrypoint which is a macro.
+    The entrypoint sets up rust code to handle the Solana program(smart contract) capabilities
+    We need to pass in a function to help us process the instruction that we receive from the user when they send a transaction over. 
+    The third thing is "fn process_instruction":
+    There are three parameters that we take in
+    You get a program_id when you deploy it to the network
+*/
 
 /// Define the type of state stored in accounts
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct GreetingAccount {
-    /// number of greetings
-    
+  /// number of greetings
+  pub counter: u32,
 }
 
 // Declare and export the program's entrypoint
-
+entrypoint!(process_instruction);
 
 // Program entrypoint's implementation
 pub fn process_instruction(
-    program_id: &Pubkey, // Public key of the account the hello world program was loaded into
-    accounts: &[AccountInfo], // The account to say hello to
-    _instruction_data: &[u8], // Ignored, all helloworld instructions are hellos
+  program_id: &Pubkey, // Public key of the account the hello world program was loaded into
+  accounts: &[AccountInfo], // The account to say hello to
+  _instruction_data: &[u8] // Ignored, all helloworld instructions are hellos
 ) -> ProgramResult {
-    msg!("Hello World Rust program entrypoint");
+  msg!("Hello World Rust program entrypoint");
 
-    // Iterating accounts is safer than indexing
-  
+  // Iterating accounts is safer than indexing
+  let accounts_iter = &mut accounts.iter();
 
-    // Get the account to say hello to
-   
+  // Get the account to say hello to
+  let account = next_account_info(accounts_iter)?;
 
-    // The account must be owned by the program in order to modify its data
-   
+  // The account must be owned by the program in order to modify its data
+  if account.owner != program_id {
+    msg!("Greeted account doesn't have the correct program id.");
+    return Err(ProgramError::IncorrectProgramId);
+  }
 
-    // Increment and store the number of times the account has been greeted
+  // Increment and store the number of times the account has been greeted
+  let mut greeting_account = GreetingAccount::try_from_slice(&account.data.borrow())?;
+  greeting_account.counter += 10;
+  greeting_account.serialize(&mut &mut account.data.borrow_mut()[..])?;
 
-    msg!("Greeted {} time(s)!", greeting_account.counter);
+  msg!("Greeted {} time(s)!", greeting_account.counter);
 
-    Ok(())
+  Ok(())
 }
-
 // Sanity tests
 #[cfg(test)]
 mod test {
